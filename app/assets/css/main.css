@@ -1,0 +1,76 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@theme {
+  --color-gold-50: #fdf8ef;
+  --color-gold-100: #f9ecd5;
+  --color-gold-200: #f2d6a9;
+  --color-gold-300: #e4bb7d;
+  --color-gold-400: #d9bd96;
+  --color-gold-500: #c98c4b;
+  --color-gold-600: #b47638;
+  --color-gold-700: #965e2e;
+  --color-gold-800: #7a4c2a;
+  --color-gold-900: #654025;
+  --color-gold-950: #1c1b16;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Playfair Display', ui-serif, Georgia, serif;
+  --font-display: 'Playfair Display', ui-serif, Georgia, serif;
+}
+
+/* Base styles */
+body {
+  background-color: #1c1b16;
+  color: #d9bd96;
+}
+
+/* Smooth scroll */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Selection color */
+::selection {
+  background-color: #c98c4b;
+  color: #1c1b16;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1c1b16;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c98c4b;
+  border-radius: 3px;
+}
+
+/* ── Button theme overrides ── */
+
+/* Solid primary button → gold background, dark text */
+.btn-gold-solid {
+  background-color: #c98c4b !important;
+  color: #1c1b16 !important;
+  border-color: #c98c4b !important;
+}
+.btn-gold-solid:hover {
+  background-color: #e4bb7d !important;
+  border-color: #e4bb7d !important;
+}
+
+/* Outline neutral button → gold border, gold text */
+.btn-gold-outline {
+  background-color: transparent !important;
+  color: #d9bd96 !important;
+  border: 1px solid rgba(201, 140, 75, 0.4) !important;
+}
+.btn-gold-outline:hover {
+  background-color: rgba(201, 140, 75, 0.1) !important;
+  border-color: #c98c4b !important;
+  color: #e4bb7d !important;
+}
