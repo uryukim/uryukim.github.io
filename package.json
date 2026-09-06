@@ -2,6 +2,7 @@
   "name": "uryukim-github-io",
   "type": "module",
   "private": true,
+  "packageManager": "pnpm@10.12.1",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
