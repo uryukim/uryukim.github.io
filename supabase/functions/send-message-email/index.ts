@@ -1,16 +1,32 @@
 import "@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
+const TURNSTILE_SECRET_KEY = Deno.env.get("TURNSTILE_SECRET_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const YOUR_EMAIL = "yuki.morales@proton.me";
 
-interface WebhookPayload {
-  type: "INSERT";
-  table: string;
-  record: {
-    id: string;
-    content: string;
-    created_at: string;
-  };
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
+async function verifyCaptcha(token: string): Promise<boolean> {
+  const res = await fetch(
+    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        secret: TURNSTILE_SECRET_KEY,
+        response: token,
+      }),
+    }
+  );
+  const data = await res.json();
+  return data.success === true;
 }
 
 function formatDate(dateStr: string): string {
@@ -110,38 +126,92 @@ function buildEmailHtml(content: string, date: string): string {
 }
 
 Deno.serve(async (req) => {
-  const payload: WebhookPayload = await req.json();
-
-  // Only process INSERT events
-  if (payload.type !== "INSERT") {
-    return new Response(JSON.stringify({ message: "Ignored" }), { status: 200 });
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
 
-  const { content, created_at } = payload.record;
+  try {
+    const { content, captcha_token } = await req.json();
 
-  // Send email via Resend
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${RESEND_API_KEY}`,
-    },
-    body: JSON.stringify({
-      from: "Sayout <onboarding@resend.dev>",
-      to: [YOUR_EMAIL],
-      subject: "💬 New anonymous message on Sayout",
-      html: buildEmailHtml(content, created_at),
-    }),
-  });
+    // Validate input
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Message is required." }),
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
 
-  const data = await res.json();
+    if (content.trim().length > 1000) {
+      return new Response(
+        JSON.stringify({ error: "Message must be under 1000 characters." }),
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
 
-  if (!res.ok) {
-    console.error("Resend error:", data);
-    return new Response(JSON.stringify({ error: data }), { status: 500 });
+    // Verify captcha
+    if (!captcha_token) {
+      return new Response(
+        JSON.stringify({ error: "Captcha verification required." }),
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
+
+    const captchaValid = await verifyCaptcha(captcha_token);
+    if (!captchaValid) {
+      return new Response(
+        JSON.stringify({ error: "Captcha verification failed." }),
+        { status: 403, headers: CORS_HEADERS }
+      );
+    }
+
+    // Insert into database (server-side with service role)
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data: record, error: dbError } = await supabase
+      .from("messages")
+      .insert({ content: content.trim() })
+      .select()
+      .single();
+
+    if (dbError) {
+      console.error("DB error:", dbError);
+      return new Response(
+        JSON.stringify({ error: "Failed to save message." }),
+        { status: 500, headers: CORS_HEADERS }
+      );
+    }
+
+    // Send email via Resend
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "Sayout <onboarding@resend.dev>",
+        to: [YOUR_EMAIL],
+        subject: "💬 New anonymous message on Sayout",
+        html: buildEmailHtml(record.content, record.created_at),
+      }),
+    });
+
+    const emailData = await res.json();
+
+    if (!res.ok) {
+      console.error("Resend error:", emailData);
+      // Message saved, email failed — not critical
+    }
+
+    return new Response(
+      JSON.stringify({ success: true }),
+      { status: 200, headers: CORS_HEADERS }
+    );
+  } catch (err) {
+    console.error("Unexpected error:", err);
+    return new Response(
+      JSON.stringify({ error: "Something went wrong." }),
+      { status: 500, headers: CORS_HEADERS }
+    );
   }
-
-  return new Response(JSON.stringify({ success: true, id: data.id }), {
-    status: 200,
-  });
 });

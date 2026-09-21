@@ -1,16 +1,54 @@
 <script lang="ts" setup>
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  'https://omoadmnnzqnbvqvqksqp.supabase.co',
-  'sb_publishable_XjochyR8bdRREnlaY4M4Pw_uRlcwvuY'
-)
+const SUPABASE_FUNCTION_URL =
+  'https://omoadmnnzqnbvqvqksqp.supabase.co/functions/v1/send-message-email'
+const TURNSTILE_SITE_KEY = '0x4AAAAAAE_LUaqc9y61qTkW' // Replace with your site key
 
 const message = ref('')
 const sent = ref(false)
 const sending = ref(false)
 const error = ref('')
 const charLimit = 1000
+const captchaToken = ref('')
+const turnstileWidget = ref<HTMLDivElement>()
+
+// Load Turnstile script
+useHead({
+  title: 'Say Something — Yuki',
+  meta: [
+    { name: 'description', content: 'Send Yuki an anonymous message.' },
+  ],
+  script: [
+    {
+      src: 'https://challenges.cloudflare.com/turnstile/v0/api.js',
+      async: true,
+      defer: true,
+    },
+  ],
+})
+
+// Render Turnstile widget once the script is loaded
+function renderTurnstile() {
+  if (!turnstileWidget.value) return
+  if (!(window as any).turnstile) {
+    // Script not loaded yet, retry
+    setTimeout(renderTurnstile, 300)
+    return
+  }
+  (window as any).turnstile.render(turnstileWidget.value, {
+    sitekey: TURNSTILE_SITE_KEY,
+    theme: 'dark',
+    callback: (token: string) => {
+      captchaToken.value = token
+    },
+    'expired-callback': () => {
+      captchaToken.value = ''
+    },
+  })
+}
+
+onMounted(() => {
+  renderTurnstile()
+})
 
 async function sendMessage() {
   const trimmed = message.value.trim()
@@ -19,37 +57,55 @@ async function sendMessage() {
     error.value = `Message must be under ${charLimit} characters.`
     return
   }
+  if (!captchaToken.value) {
+    error.value = 'Please complete the captcha verification.'
+    return
+  }
 
   error.value = ''
   sending.value = true
 
-  const { error: dbError } = await supabase
-    .from('messages')
-    .insert({ content: trimmed })
+  try {
+    const res = await fetch(SUPABASE_FUNCTION_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: trimmed,
+        captcha_token: captchaToken.value,
+      }),
+    })
 
-  sending.value = false
+    const data = await res.json()
 
-  if (dbError) {
-    error.value = 'Something went wrong. Please try again.'
-    console.error(dbError)
-    return
+    if (!res.ok) {
+      error.value = data.error || 'Something went wrong. Please try again.'
+      // Reset captcha for retry
+      if ((window as any).turnstile) {
+        (window as any).turnstile.reset()
+      }
+      captchaToken.value = ''
+      sending.value = false
+      return
+    }
+
+    sent.value = true
+    message.value = ''
+  } catch {
+    error.value = 'Network error. Please try again.'
   }
 
-  sent.value = true
-  message.value = ''
+  sending.value = false
 }
 
 function sendAnother() {
   sent.value = false
   error.value = ''
+  captchaToken.value = ''
+  // Re-render captcha
+  nextTick(() => {
+    renderTurnstile()
+  })
 }
-
-useHead({
-  title: 'Say Something — Yuki',
-  meta: [
-    { name: 'description', content: 'Send Yuki an anonymous message.' },
-  ],
-})
 </script>
 
 <template>
@@ -105,12 +161,17 @@ useHead({
           </span>
         </div>
 
+        <!-- Turnstile Captcha -->
+        <div class="flex justify-center">
+          <div ref="turnstileWidget" />
+        </div>
+
         <p v-if="error" class="text-sm text-red-400">
           {{ error }}
         </p>
 
         <button
-          :disabled="!message.trim() || sending"
+          :disabled="!message.trim() || sending || !captchaToken"
           class="btn-gold-solid w-full py-3 rounded-xl text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           @click="sendMessage"
         >
