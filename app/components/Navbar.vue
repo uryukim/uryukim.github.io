@@ -1,5 +1,5 @@
 <template>
-  <nav class="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-gold-950/80 border-b border-gold-500/10">
+  <nav class="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-gold-950/60 border-b border-gold-500/10">
     <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
       <NuxtLink
         to="/"
@@ -8,7 +8,7 @@
         Yuki.
       </NuxtLink>
 
-      <div class="flex items-center gap-8">
+      <div class="flex items-center gap-4 md:gap-6">
         <NuxtLink
           v-for="link in links"
           :key="link.to"
@@ -17,6 +17,16 @@
         >
           {{ link.label }}
         </NuxtLink>
+        <a
+          href="https://www.facebook.com/ur.yuki.morales/"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-sm text-gold-400 hover:text-gold-300 transition-colors tracking-wide uppercase"
+        >
+          Contact
+        </a>
+        <div class="w-px h-4 bg-gold-500/20" />
+        <MusicToggle />
       </div>
     </div>
   </nav>
@@ -25,7 +35,6 @@
 <script setup lang="ts">
 const links = [
   { label: 'Blog', to: '/blog' },
-  { label: 'About', to: '/#about' },
-  { label: 'Contact', to: '/#contact' },
+  { label: 'Sayout', to: '/sayout' },
 ]
 </script>
