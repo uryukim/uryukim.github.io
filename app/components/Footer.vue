@@ -22,9 +22,7 @@
 
 <script setup lang="ts">
 const socials = [
-  { label: 'Behance', href: '#' },
-  { label: 'Dribbble', href: '#' },
-  { label: 'Instagram', href: '#' },
-  { label: 'LinkedIn', href: '#' },
+  { label: 'Github', href: 'https://github.com/uryukim' },
+	{ label: 'Instagram', href: 'https://www.instagram.com/uryukim/' }
 ]
 </script>
