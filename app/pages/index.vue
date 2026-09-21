@@ -195,7 +195,8 @@
             Have an idea, a collaboration, or just want to say hi? I'd love
             to hear from you.
           </p>
-          <a
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a
             href="https://www.facebook.com/ur.yuki.morales/"
             target="_blank"
             rel="noopener noreferrer"
@@ -203,7 +204,15 @@
           >
             <Icon name="simple-icons:facebook" class="w-5 h-5 mr-2" />
             Say Hello!
-          </a>
+            </a>
+            <NuxtLink
+              to="/sayout"
+              class="btn-gold-outline inline-flex items-center px-10 py-3.5 rounded-lg text-base font-medium transition-colors"
+            >
+              <Icon name="lucide:message-circle" class="w-5 h-5 mr-2" />
+              Anonymous Message
+            </NuxtLink>
+          </div>
         </div>
       </div>
     </section>
